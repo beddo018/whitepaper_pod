@@ -103,12 +103,6 @@ def process_and_generate_transcript_with_nougat(paper_pdf_url):
         raise Exception("Failed to retrieve the PDF content")
 
     # Process PDF and include NOUGAT-generated text
-    extracted_text = process_pdf_to_text_and_images(pdf_content)
-    
-    # Split text into manageable chunks
-    text_chunks = split_text_into_chunks(extracted_text)
-    
-    # Process PDF and include NOUGAT-generated text
     extracted_text, image_descriptions = process_pdf_to_text_and_images(pdf_content)
     
     # Split text into manageable chunks
