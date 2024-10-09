@@ -6,5 +6,5 @@ PyPDF2==3.0.1
 PyMuPDF==1.24.9
 pytesseract==0.3.13
 nougat-ocr==0.1.0
-google-cloud-texttospeech==2.7.0
+elevenlabs==0.2.15
 certifi==2024.7.4
