@@ -60,14 +60,20 @@ def run_nougat_on_pdf(pdf_path, output_dir):
 def process_pdf_to_text_and_images(pdf_content):
     # Save the PDF content temporarily
     pdf_file_path = "/tmp/temp_pdf.pdf"
-    with open(pdf_file_path, "wb") as pdf_file:
-        pdf_file.write(pdf_content)
+    try:
+        with open(pdf_file_path, "wb") as pdf_file:
+            pdf_file.write(pdf_content)
+            print(f"PDF successfully saved to {pdf_file_path}")
+    except Exception as e:
+        print(f"Failed to save PDF: {str(e)}")
+        raise
 
     # Process with NOUGAT
     nougat_output = run_nougat_on_pdf(pdf_file_path, "/tmp")
 
     # Combine text
     return nougat_output
+
 
 def process_and_generate_transcript_with_nougat(paper_pdf_url):
     pdf_content = query_for_pdf(paper_pdf_url)
