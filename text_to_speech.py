@@ -1,4 +1,4 @@
-from elevenlabs import generate, save
+from elevenlabs import TextToSpeech, save
 import os
 import sqlite3
 
@@ -17,7 +17,7 @@ conn.commit()
 
 def convert_to_audio(transcript, filename):
     # Generate audio using ElevenLabs
-    audio_content = generate(text=transcript, voice="Rachel", model="eleven_monolingual_v1")
+    audio_content = TextToSpeech(text=transcript, voice="Rachel", model="eleven_monolingual_v1")
 
     # Save audio to file
     audio_path = os.path.join('static', 'audio', filename)
