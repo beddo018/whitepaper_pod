@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, send_from_directory, render_template
 from arxiv import query, query_for_pdf
 from transcript_generator import generate_transcript
 from text_to_speech import convert_to_audio
+import fitz  # PyMuPDF
 import certifi
 import ssl
 import urllib.request
@@ -57,7 +58,22 @@ def run_nougat_on_pdf(pdf_path, output_dir):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to run NOUGAT: {e}")
 
-def process_pdf_to_text_and_images(pdf_content):
+def extract_images_from_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    images = []
+    for page in doc:
+        for img_index, img in enumerate(page.get_images(full=True)):
+            xref = img[0]
+            base_image = doc.extract_image(xref)
+            image_bytes = base_image["image"]
+            images.append(image_bytes)
+    return images
+
+def describe_image(image_bytes):
+    # Placeholder for image description logic
+    # You can use a service like Google Cloud Vision to describe the image
+    return "Description of the image"
+    
     # Save the PDF content temporarily
     pdf_file_path = "/tmp/temp_pdf.pdf"
     try:
@@ -71,8 +87,13 @@ def process_pdf_to_text_and_images(pdf_content):
     # Process with NOUGAT
     nougat_output = run_nougat_on_pdf(pdf_file_path, "/tmp")
 
-    # Combine text
-    return nougat_output
+    # Extract images
+    images = extract_images_from_pdf(pdf_file_path)
+    image_descriptions = [describe_image(image) for image in images]
+
+    # Combine text and image descriptions
+    combined_output = nougat_output + "\n\n" + "\n".join(image_descriptions)
+    return combined_output
 
 
 def process_and_generate_transcript_with_nougat(paper_pdf_url):
@@ -89,7 +110,7 @@ def process_and_generate_transcript_with_nougat(paper_pdf_url):
     # Generate a transcript for each chunk
     full_transcript = ""
     for chunk in text_chunks:
-        transcript = generate_transcript({"title": "Sample Paper", "summary": chunk})
+        transcript = generate_transcript({"title": "Sample Paper", "summary": chunk}, image_descriptions)
         full_transcript += transcript + "\n\n"
 
     return full_transcript
