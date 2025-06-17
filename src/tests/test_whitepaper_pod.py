@@ -4,7 +4,7 @@ import io
 from unittest.mock import patch, MagicMock
 from app import app
 from pdf_processor import process_pdf, extract_text_from_pdf, extract_images_from_pdf
-from transcript_generator import generate_transcript
+from server.generate_transcript.transcript_generator import generate_transcript
 from text_to_speech_local import convert_to_audio
 from arxiv import query, query_for_pdf
 
