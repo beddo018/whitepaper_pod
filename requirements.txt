@@ -10,3 +10,5 @@ pdfplumber
 celery
 redis
 Pillow
+python-dotenv
+anthropic

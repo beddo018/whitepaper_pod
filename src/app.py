@@ -1,22 +1,24 @@
 import subprocess
 import time
 from flask import Flask, request, jsonify, send_from_directory, render_template
-from arxiv import query, query_for_pdf
-from transcript_generator import generate_transcript
-from text_to_speech_openai import convert_to_audio
-from pdf_processor import process_pdf
+from server.generate_transcript.arxiv import query, query_for_pdf
+from server.generate_transcript.transcript_generator import generate_transcript
+from server.generate_audio.text_to_speech_openai import convert_to_audio
+from server.generate_transcript.pdf_processor import process_pdf
 from celery import Celery
 import os
 from pathlib import Path
 
-# Initialize Flask app
-app = Flask(__name__)
+# Initialize Flask app with correct template and static folders
+app = Flask(__name__, 
+           template_folder='client/templates',
+           static_folder='client/static')
 
 # Initialize Celery
 celery = Celery('whitepaper_pod', broker='redis://localhost:6379/0')
 
 # Ensure required directories exist
-Path('static/audio').mkdir(parents=True, exist_ok=True)
+Path('src/client/static/audio').mkdir(parents=True, exist_ok=True)
 Path('tmp').mkdir(exist_ok=True)
 
 @app.route('/')
@@ -91,7 +93,7 @@ def task_status(task_id):
 
 @app.route('/static/audio/<filename>')
 def serve_audio(filename):
-    return send_from_directory('static/audio', filename)
+    return send_from_directory('src/client/static/audio', filename)
 
 if __name__ == '__main__':
     app.run(debug=True)

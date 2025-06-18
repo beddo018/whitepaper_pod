@@ -3,27 +3,37 @@ from openai import OpenAI
 import sqlite3
 from pathlib import Path
 import re
+from pydub import AudioSegment
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Ensure audio directory exists
-audio_dir = Path('static/audio')
+# Ensure directories exist
+audio_dir = Path('src/client/static/audio')
+tmp_dir = Path('tmp')
 audio_dir.mkdir(parents=True, exist_ok=True)
+tmp_dir.mkdir(exist_ok=True)
 
 # Database setup
-conn = sqlite3.connect('audio_files.db')
-cursor = conn.cursor()
-
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS audio_files (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    transcript TEXT,
-    audio BLOB,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-''')
-conn.commit()
+def get_db_connection():
+    """Get database connection with proper error handling"""
+    try:
+        conn = sqlite3.connect('audio_files.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audio_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transcript TEXT,
+            audio BLOB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        conn.commit()
+        return conn, cursor
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        raise
 
 def extract_ssml_speakers(ssml_text):
     """
@@ -71,35 +81,39 @@ def convert_to_audio(transcript, filename):
                 )
                 
                 # Save segment
-                segment_path = f"tmp/{speaker}_{filename}"
-                response.stream_to_file(segment_path)
+                segment_path = tmp_dir / f"{speaker}_{filename}"
+                response.stream_to_file(str(segment_path))
                 audio_segments.append(segment_path)
         
         # Combine audio segments
-        from pydub import AudioSegment
         combined = AudioSegment.empty()
         for segment in audio_segments:
-            audio = AudioSegment.from_file(segment)
+            audio = AudioSegment.from_file(str(segment))
             combined += audio
             os.remove(segment)  # Clean up segment file
         
         # Save final audio
-        audio_path = os.path.join('static', 'audio', filename)
-        combined.export(audio_path, format="mp3")
+        audio_path = audio_dir / filename
+        combined.export(str(audio_path), format="mp3")
 
         # Store in database
-        with open(audio_path, 'rb') as audio_file:
-            audio_blob = audio_file.read()
-            cursor.execute('''
-            INSERT INTO audio_files (transcript, audio)
-            VALUES (?, ?)
-            ''', (transcript, audio_blob))
-            conn.commit()
+        conn, cursor = get_db_connection()
+        try:
+            with open(audio_path, 'rb') as audio_file:
+                audio_blob = audio_file.read()
+                cursor.execute('''
+                INSERT INTO audio_files (transcript, audio)
+                VALUES (?, ?)
+                ''', (transcript, audio_blob))
+                conn.commit()
+        finally:
+            conn.close()
 
-        return audio_path
+        return str(audio_path)
     except Exception as e:
         print(f"Error converting to audio: {str(e)}")
         raise
 
 def close_connection():
-    conn.close()
+    """Close database connection - kept for backward compatibility"""
+    pass  # Connection is now managed per function call
