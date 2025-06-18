@@ -1,0 +1,96 @@
+# Podcast Episode: “SEAT at the Table: Keeping LLMs Honest”
+
+**Host (Riley Thompson):** Welcome to “AlignML,” the podcast where we pull back the curtain on cutting-edge AI safety research. I’m your host, Riley Thompson. Today, we’re diving into a brand-new paper from arXiv—one that spotlights a subtle but critical side‐effect of fine-tuning large language models: the erosion of their ability to admit “I don’t know.”  
+
+Joining me are four experts:  
+- **Dr. Elena Garcia**, a Safety Alignment Specialist  
+- **Prof. James Liu**, Theoretical ML Researcher  
+- **Dr. Maria Nguyen**, Applied NLP Engineer  
+- **Alex Johnson**, AI Systems Architect  
+
+Let’s get started.
+
+---
+
+## Segment 1: The Overlooked Risk  
+**Host:** Elena, give us the lay of the land. What gap in LLM fine-tuning does this paper illuminate?
+
+**Dr. Elena Garcia (Safety Alignment):**  
+Thanks, Riley. For years, folks have tackled catastrophic forgetting by freezing layers or replaying old data—basically ensuring the model doesn’t unlearn specific skills or facts. Yet almost nobody checked whether we also erode the safety safeguards we originally baked in. One critical safeguard: the model’s calibrated uncertainty—or its willingness to say, “I don’t know.” When that fades, you get overconfident hallucinations.  
+
+**Prof. James Liu (Theory):**  
+Exactly. It’s an alignment blindspot. The standard view treats knowledge entanglement as purely “task performance vs. factual recall.” But here, we see a third axis: safety alignment itself. If fine-tuning drifts too far, we lose that honest self-reporting.
+
+---
+
+## Segment 2: Diagnosing the Drift  
+**Host:** Maria, how dramatic is this “ignorance drift” in practice?
+
+**Dr. Maria Nguyen (Applied NLP):**  
+Quite dramatic. In controlled experiments, models fine-tuned conventionally on domain-specific data would attempt answers even when prompts asked about completely unseen entities. Their calibration curves collapse. You might get a confident but bogus biography of a fictional person. That’s dangerous, especially in high-stakes applications.
+
+**Alex Johnson (Systems Architect):**  
+From a systems perspective, the ripple effect is huge. Once downstream apps trust those bad confidences, you get bad decisions—legal, medical, you name it. The paper quantifies this: a 30% drop in “I don’t know” responses after just a few epochs of vanilla fine-tuning.
+
+---
+
+## Segment 3: Introducing SEAT  
+**Host:** Time to meet the hero of our story: SEAT. James, what’s in the toolkit?
+
+**Prof. James Liu (Theory):**  
+SEAT stands for **S**parse training plus **E**ntity **A**dversarial perturbation with **T**hermal regularization—though they simplify it to “sparse & perturbed.” Two pillars:  
+
+1. **Sparse Training**  
+   - They apply an activation drift constraint: only a small fraction of network weights are allowed to migrate significantly.  
+   - This keeps the bulk of the model anchored to its pre-aligned state.  
+
+2. **Entity Perturbation + KL Regularization**  
+   - At each step, they replace real entities in prompts with “dummy” or random ones.  
+   - They then enforce that the model’s output distribution remains close—for known vs. perturbed—via a KL-divergence penalty.  
+
+Together, these guardrails prevent the model from weaving new domain knowledge into its uncertainty estimation.
+
+---
+
+## Segment 4: Experimental Highlights  
+**Host:** Maria, what do the numbers say?
+
+**Dr. Maria Nguyen (Applied NLP):**  
+In benchmark tests across open‐domain QA and medical dialogue:  
+- **Ignorance Precision** jumped from ~60% baseline to ~92% with SEAT.  
+- **Task Accuracy** held steady—no more than a 1–2% dip compared to vanilla fine-tuning.  
+That’s huge: you preserve “don’t know” honesty without sacrificing the fine-tuned skills you wanted in the first place.
+
+**Alex Johnson (Systems Architect):**  
+They also stress-tested latency and compute. Sparse updates shave off about 20% of training FLOPs. Perturbation overhead is minimal. It slots nicely into existing pipelines.
+
+---
+
+## Segment 5: Broader Implications & Next Steps  
+**Host:** Elena, where does this leave us in the bigger safety landscape?
+
+**Dr. Elena Garcia (Safety Alignment):**  
+It’s a paradigm shift: alignment isn’t just a pre-training checkbox. We need *continual* alignment monitoring. SEAT gives us a lightweight nudge to keep safety behaviors intact.  
+
+**Prof. James Liu (Theory):**  
+I’d love to see more theory on why these two mechanisms synergize so well. There’s a mathematical story waiting to be told about preserving information geometry in embedding space.
+
+---
+
+## Closing Thoughts  
+**Host:** Huge thanks to Elena, James, Maria, and Alex. We’ve learned how easily a valuable safety trait can erode, and how SEAT provides an elegant fix.  
+
+If you’re tuning your own LLMs, consider integrating sparse constraints and adversarial entity perturbations into your fine-tuning recipes.  
+
+Next week on AlignML, we’ll unpack “Symbolic Safety Shields”—a hybrid logic-neural approach to run-time guardrails. Stay curious, stay safe!
+
+---
+
+### Bonus Resources & Detours  
+- Further Reading:  
+  - “Continual Calibration in Deep Nets” (ICLR 2024)  
+  - “Adversarial Perturbations for Robust Uncertainty” (NeurIPS Spotlight)  
+- Open Question: How might SEAT integrate with Reinforcement Learning from Human Feedback?  
+- Tech Deep Dive: We’ll share code recipes on our GitHub: `github.com/AlignML/SEAT-podcast-demo`  
+
+Keep the conversation going at @AlignMLpod on Twitter—and let us know your toughest fine-tuning horror stories!
