@@ -30,7 +30,5 @@ Quite dramatic. In controlled experiments, models fine-tuned conventionally on d
 **Alex Johnson (Systems Architect):**  
 From a systems perspective, the ripple effect is huge. Once downstream apps trust those bad confidences, you get bad decisions—legal, medical, you name it. The paper quantifies this: a 30% drop in “I don’t know” responses after just a few epochs of vanilla fine-tuning.
 
----
-
 
 """
