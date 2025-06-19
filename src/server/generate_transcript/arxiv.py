@@ -7,7 +7,6 @@ logging.basicConfig(level=logging.DEBUG)
 def query(query_params):
     with libreq.urlopen(f'http://export.arxiv.org/api/query?{query_params}') as url:
         r = url.read()
-    print(r)
     
     logging.debug(f"Response content: {r.decode('utf-8')}")
     
