@@ -1,12 +1,16 @@
 import urllib.request as libreq
+import urllib.parse as libparse
 import xml.etree.ElementTree as ET
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
 def query(query_params):
-    with libreq.urlopen(f'http://export.arxiv.org/api/query?{query_params}') as url:
-        r = url.read()
+    encoded_params = libparse.quote(query_params)
+    url = f'http://export.arxiv.org/api/query?{encoded_params}'
+    
+    with libreq.urlopen(url) as response:
+        r = response.read()
     
     logging.debug(f"Response content: {r.decode('utf-8')}")
     
