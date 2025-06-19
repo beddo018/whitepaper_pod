@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.DEBUG)
 def query(query_params):
     url = f'http://export.arxiv.org/api/query?{query_params}'
     response = requests.get(url)
-    
+    print(response.text)
     logging.debug(f"Response content: {response.text}")
     
     if response.status_code != 200:
