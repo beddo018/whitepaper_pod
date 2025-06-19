@@ -1,20 +1,17 @@
-import requests
+import urllib.request as libreq
 import xml.etree.ElementTree as ET
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
 def query(query_params):
-    url = f'http://export.arxiv.org/api/query?{query_params}'
-    response = requests.get(url)
+    with libreq.urlopen(f'http://export.arxiv.org/api/query?{query_params}') as url:
+        r = url.read()
+    print(r)
     
-    logging.debug(f"Response content: {response.text}")
+    logging.debug(f"Response content: {r.decode('utf-8')}")
     
-    if response.status_code != 200:
-        logging.error(f"Error fetching data from arXiv: {response.status_code}")
-        return []
-    
-    root = ET.fromstring(response.content)
+    root = ET.fromstring(r)
     papers = []
     for entry in root.findall('{http://www.w3.org/2005/Atom}entry'):
         paper = {
@@ -32,8 +29,7 @@ def query(query_params):
 def query_for_pdf(paper_url):
     pdf_url = f"{paper_url}.pdf"
     try:
-        pdf_res = requests.get(pdf_url)
-        pdf_res.raise_for_status()
-        return pdf_res.content
-    except requests.exceptions.RequestException as e:
+        with libreq.urlopen(pdf_url) as response:
+            return response.read()
+    except Exception as e:
         raise Exception(f"Failed to retrieve the PDF: {e}")
