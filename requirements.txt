@@ -12,4 +12,4 @@ redis
 Pillow
 python-dotenv
 anthropic
-elevenlabs
+elevenlabs==0.2.27

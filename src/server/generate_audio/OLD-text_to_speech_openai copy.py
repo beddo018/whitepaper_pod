@@ -15,35 +15,35 @@ audio_dir.mkdir(parents=True, exist_ok=True)
 tmp_dir.mkdir(exist_ok=True)
 
 # Database setup
-# def get_db_connection():
-#     """Get database connection with proper error handling"""
-#     try:
-#         conn = sqlite3.connect('audio_files.db')
-#         cursor = conn.cursor()
+def get_db_connection():
+    """Get database connection with proper error handling"""
+    try:
+        conn = sqlite3.connect('audio_files.db')
+        cursor = conn.cursor()
         
-#         cursor.execute('''
-#         CREATE TABLE IF NOT EXISTS audio_files (
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             transcript TEXT,
-#             audio BLOB,
-#             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-#         )
-#         ''')
-#         conn.commit()
-#         return conn, cursor
-#     except Exception as e:
-#         print(f"Database connection error: {str(e)}")
-#         raise
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audio_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transcript TEXT,
+            audio BLOB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        conn.commit()
+        return conn, cursor
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        raise
 
-# def extract_ssml_speakers(ssml_text):
-#     """
-#     Extract speaker roles from SSML text
-#     """
-#     speakers = set()
-#     # Look for voice tags in SSML
-#     voice_tags = re.findall(r'<voice name="([^"]+)">', ssml_text)
-#     speakers.update(voice_tags)
-#     return list(speakers)
+def extract_ssml_speakers(ssml_text):
+    """
+    Extract speaker roles from SSML text
+    """
+    speakers = set()
+    # Look for voice tags in SSML
+    voice_tags = re.findall(r'<voice name="([^"]+)">', ssml_text)
+    speakers.update(voice_tags)
+    return list(speakers)
 
 def convert_to_audio(transcript, filename):
     """
