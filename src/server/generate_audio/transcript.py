@@ -1,10 +1,42 @@
-transcript = """*Host (Riley Thompson):** Welcome to “AlignML,” the podcast where we pull back the curtain on cutting-edge AI safety research. I’m your host, Riley Thompson. Today, we’re diving into a brand-new paper from arXiv—one that spotlights a subtle but critical side‐effect of fine-tuning large language models: the erosion of their ability to admit “I don’t know.”  
+sample_transcript_list = [
+    {
+        "speaker": "speaker_1",
+        "text": "Good morning and welcome to The Business Hour. I'm Jennifer Adams, and today we're discussing entrepreneurship in the digital age."
+    },
+    {
+        "speaker": "speaker_2",
+        "text": "Hello everyone, I'm Tom Wilson. We're joined today by Maria Gonzalez, founder of three successful startups and author of 'Digital Disruption'."
+    },
+    {
+        "speaker": "speaker_4",
+        "text": "Thanks for having me, Jennifer and Tom. I'm excited to share some insights about building businesses in today's rapidly changing landscape."
+    },
+    {
+        "speaker": "speaker_1", 
+        "text": "Maria, you started your first company right out of college. What inspired you to take that entrepreneurial leap so early?"
+    },
+    {
+        "speaker": "speaker_4",
+        "text": "I saw a gap in the market for mobile solutions for small businesses. Instead of waiting for someone else to fill it, I decided to take action. The worst that could happen was failure, and I figured I was young enough to recover from that."
+    },
+    {
+        "speaker": "speaker_2",
+        "text": "That's a great attitude. Can you tell us about the biggest challenges you faced in those early days?"
+    },
+    {
+        "speaker": "speaker_4",
+        "text": "Funding was definitely the biggest hurdle. Traditional investors weren't convinced that mobile-first solutions would take off. I had to bootstrap the company for the first two years while working part-time to pay the bills."
+    }
+]
+
+
+transcriptML = """*Host (Riley Thompson):** Welcome to “AlignML,” the podcast where we pull back the curtain on cutting-edge AI safety research. I’m your host, Riley Thompson. Today, we’re diving into a brand-new paper from arXiv—one that spotlights a subtle but critical side‐effect of fine-tuning large language models: the erosion of their ability to admit “I don’t know.”  
 
 Joining me are four experts:  
-- **Dr. Elena Garcia**, a Safety Alignment Specialist  
-- **Prof. James Liu**, Theoretical ML Researcher  
-- **Dr. Maria Nguyen**, Applied NLP Engineer  
-- **Alex Johnson**, AI Systems Architect  
+- ***Dr. Elena Garcia***, a Safety Alignment Specialist  
+- ***Prof. James Liu***, Theoretical ML Researcher  
+- ***Dr. Maria Nguyen***, Applied NLP Engineer  
+- ***Alex Johnson***, AI Systems Architect  
 
 Let’s get started.
 
@@ -32,3 +64,10 @@ From a systems perspective, the ripple effect is huge. Once downstream apps trus
 
 
 """
+
+filename = "alignML"
+
+ssml_text = """- **Dr. Elena Garcia**, a Safety Alignment Specialist  
+- **Prof. James Liu**, Theoretical ML Researcher  
+- **Dr. Maria Nguyen**, Applied NLP Engineer  
+- **Alex Johnson**, AI Systems Architect  """

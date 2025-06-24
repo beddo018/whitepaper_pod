@@ -4,6 +4,11 @@ import sqlite3
 from pathlib import Path
 import re
 from pydub import AudioSegment
+from elevenlabs.client import ElevenLabs
+from elevenlabs import Voice, VoiceSettings, play
+
+# hardcoded transcript, filename, and ssml_text
+from transcript import transcript, filename, ssml_text
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -41,7 +46,7 @@ def extract_ssml_speakers(ssml_text):
     """
     speakers = set()
     # Look for voice tags in SSML
-    voice_tags = re.findall(r'<voice name="([^"]+)">', ssml_text)
+    voice_tags = re.findall(r'\*{3}(.+?)\*{3}', ssml_text)
     speakers.update(voice_tags)
     return list(speakers)
 
@@ -56,10 +61,12 @@ def convert_to_audio(transcript, filename):
         
         # Map speakers to OpenAI voices
         voice_mapping = {
-            'host': 'alloy',
-            'expert': 'nova',
-            'panelist1': 'echo',
-            'panelist2': 'fable'
+            'host': 'iP95p4xoKVk53GoZ742B',
+            speakers[0]: 'EXAVITQu4vr4xnSDxMaL',
+            speakers[1]: '9BWtsMINqrJLrRacOk9x',
+            speakers[2]: 'XrExE9yKIg1WjnnlVkGX',
+            speakers[3]: 'onwK4e9ZLuTAKqWW03F9',
+            speakers[4]: 'N2lVS1w4EtoT3dr4eOWO'
         }
         
         # Generate audio for each speaker

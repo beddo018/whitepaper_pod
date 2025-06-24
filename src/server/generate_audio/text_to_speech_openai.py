@@ -1,20 +1,17 @@
 import os
-from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
-from elevenlabs import generate, play
-from elevenlabs import voices as list_voices
+from openai import OpenAI
 import sqlite3
 from pathlib import Path
 import re
 from pydub import AudioSegment
+from elevenlabs.client import ElevenLabs
+from elevenlabs import Voice, VoiceSettings, play
 
-load_dotenv()
+# hardcoded transcript, filename, and ssml_text
+from transcript import transcript, filename, ssml_text
 
-
-# Initialize ElevenLabs client
-elevenlabs = ElevenLabs(
-  api_key=os.getenv("ELEVENLABS_API_KEY"),
-)
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Ensure directories exist
 audio_dir = Path('src/client/static/audio')
@@ -22,78 +19,108 @@ tmp_dir = Path('tmp')
 audio_dir.mkdir(parents=True, exist_ok=True)
 tmp_dir.mkdir(exist_ok=True)
 
+# Database setup
+def get_db_connection():
+    """Get database connection with proper error handling"""
+    try:
+        conn = sqlite3.connect('audio_files.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audio_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transcript TEXT,
+            audio BLOB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        conn.commit()
+        return conn, cursor
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        raise
 
+def extract_ssml_speakers(ssml_text):
+    """
+    Extract speaker roles from SSML text
+    """
+    speakers = set()
+    # Look for voice tags in SSML
+    voice_tags = re.findall(r'\*{3}(.+?)\*{3}', ssml_text)
+    speakers.update(voice_tags)
+    return list(speakers)
 
-# 3. Define voices + descriptions
-VOICE_CONFIG = {
-    "Riley Thompson": {
-        "voice_id":     "voice_id_host",
-        "description":  "Warm, clear, and engaging host tone"
-    },
-    "Dr. Elena Garcia": {
-        "voice_id":     "voice_id_elena",
-        "description":  "Measured, thoughtful, with a calm authority"
-    },
-    "Prof. James Liu": {
-        "voice_id":     "voice_id_james",
-        "description":  "Analytical, precise, slight academic cadence"
-    },
-    "Dr. Maria Nguyen": {
-        "voice_id":     "voice_id_maria",
-        "description":  "Energetic, confident, tech-savvy engineer vibe"
-    },
-    "Alex Johnson": {
-        "voice_id":     "voice_id_alex",
-        "description":  "Grounded, conversational, systems-architect style"
-    },
-}
+def convert_to_audio(transcript, filename):
+    """
+    Convert transcript to audio using OpenAI's TTS API
+    Supports multiple voices and SSML
+    """
+    try:
+        # Extract speakers from SSML
+        speakers = extract_ssml_speakers(transcript)
+        
+        # Map speakers to OpenAI voices
+        voice_mapping = {
+            'host': 'iP95p4xoKVk53GoZ742B',
+            speakers[0]: 'EXAVITQu4vr4xnSDxMaL',
+            speakers[1]: '9BWtsMINqrJLrRacOk9x',
+            speakers[2]: 'XrExE9yKIg1WjnnlVkGX',
+            speakers[3]: 'onwK4e9ZLuTAKqWW03F9',
+            speakers[4]: 'N2lVS1w4EtoT3dr4eOWO'
+        }
+        
+        # Generate audio for each speaker
+        audio_segments = []
+        for speaker in speakers:
+            # Extract text for this speaker
+            speaker_pattern = f'<voice name="{speaker}">(.*?)</voice>'
+            speaker_text = re.findall(speaker_pattern, transcript, re.DOTALL)
+            
+            if speaker_text:
+                # Get OpenAI voice
+                openai_voice = voice_mapping.get(speaker, 'alloy')
+                
+                # Generate audio for this segment
+                response = client.audio.speech.create(
+                    model="tts-1",
+                    voice=openai_voice,
+                    input=speaker_text[0]
+                )
+                
+                # Save segment
+                segment_path = tmp_dir / f"{speaker}_{filename}"
+                response.stream_to_file(str(segment_path))
+                audio_segments.append(segment_path)
+        
+        # Combine audio segments
+        combined = AudioSegment.empty()
+        for segment in audio_segments:
+            audio = AudioSegment.from_file(str(segment))
+            combined += audio
+            os.remove(segment)  # Clean up segment file
+        
+        # Save final audio
+        audio_path = audio_dir / filename
+        combined.export(str(audio_path), format="mp3")
 
-print("🔊 Voice descriptions:")
-for name, cfg in VOICE_CONFIG.items():
-    print(f"  • {name}: {cfg['description']} (ID: {cfg['voice_id']})")
-print()
+        # Store in database
+        conn, cursor = get_db_connection()
+        try:
+            with open(audio_path, 'rb') as audio_file:
+                audio_blob = audio_file.read()
+                cursor.execute('''
+                INSERT INTO audio_files (transcript, audio)
+                VALUES (?, ?)
+                ''', (transcript, audio_blob))
+                conn.commit()
+        finally:
+            conn.close()
 
-# 4. Define segments (replace with your full transcript)
-SEGMENTS = [
-    {
-        "speaker": "Riley Thompson",
-        "text": "Elena, give us the lay of the land. What gap in LLM fine-tuning does this paper illuminate?"
-    },
-    {
-        "speaker": "Dr. Elena Garcia",
-        "text": "Thanks, Riley. For years, folks have tackled catastrophic forgetting by freezing layers or replaying old data—basically ensuring the model doesn’t unlearn specific skills or facts."
-    },
-    {
-        "speaker": "Prof. James Liu",
-        "text": "Exactly. It’s an alignment blindspot. The standard view treats knowledge entanglement as purely “task performance vs. factual recall.” "
-    },
-    
-]
+        return str(audio_path)
+    except Exception as e:
+        print(f"Error converting to audio: {str(e)}")
+        raise
 
-# 5. Generate and combine audio
-combined = AudioSegment.empty()
-
-for idx, seg in enumerate(SEGMENTS):
-    speaker = seg["speaker"]
-    text = seg["text"]
-    cfg = VOICE_CONFIG.get(speaker)
-    if not cfg:
-        raise KeyError(f"No voice config found for: {speaker}")
-
-    print(f"🛠️ Generating audio for {speaker}...")
-    audio_bytes = elevenlabs.generate(
-        text=text,
-        voice=cfg["voice_id"],
-        model="eleven_monolingual_v1"
-    )
-
-    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="mp3")
-    combined += audio + AudioSegment.silent(duration=500)
-    
-    play(audio)
-
-# 6. Save to file
-output_path = "alignml_seat_episode.mp3"
-combined.export(output_path, format="mp3")
-print(f"✅ Podcast saved as {output_path}")
-
+def close_connection():
+    """Close database connection - kept for backward compatibility"""
+    pass  # Connection is now managed per function call
