@@ -1,6 +1,7 @@
 import anthropic
 from dotenv import load_dotenv
 import os
+import logging
 
 load_dotenv()
 
@@ -40,5 +41,8 @@ Keep the podcast to 5 minutes."""
             }
         ]
     )
+
+    logging.debug(f"Transcript content: {response.decode('utf-8')}")
+
     # Access the response content correctly for SDK 0.35.0
     return response.content
