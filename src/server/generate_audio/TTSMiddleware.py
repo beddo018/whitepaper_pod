@@ -1,10 +1,11 @@
 import os
+from dotenv import load_dotenv
 import sqlite3
 import logging
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from flask import current_app, jsonify
-from elevenlabs import ElevenLabs, VoiceSettings
+from elevenlabs import ElevenLabs, VoiceSettings, text_to_speech, play
 from pydub import AudioSegment
 import tempfile
 import json
@@ -13,6 +14,13 @@ from transcript import sample_transcript_list
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
+
+elevenlabs = ElevenLabs(
+  api_key=os.getenv("ELEVENLABS_API_KEY"),
+)
 
 class TTSMiddleware:
     """
@@ -121,7 +129,7 @@ class TTSMiddleware:
             voice_id = self.voice_mapping.get(speaker, self.voice_mapping['speaker_1'])
             
             # Generate speech using ElevenLabs API
-            audio = self.client.text_to_speech.convert(
+            audio = elevenlabs.text_to_speech.convert(
                 text=text,
                 voice_id=voice_id,
                 model_id="eleven_flash_v2_5",  # You can change this model as needed
@@ -131,6 +139,9 @@ class TTSMiddleware:
                     similarity_boost=0.75,
                 )
             )
+            
+            #for testing
+            play(audio)
             
             # Convert generator to bytes
             audio_bytes = b''.join(audio)
