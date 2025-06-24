@@ -6,7 +6,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 def query(query_params):
-    encoded_params = libparse.quote(query_params)
+    # Encode the query_params string to handle spaces and special characters
+    encoded_params = libparse.quote(query_params, safe='=&')
     url = f'http://export.arxiv.org/api/query?{encoded_params}'
     
     with libreq.urlopen(url) as response:
