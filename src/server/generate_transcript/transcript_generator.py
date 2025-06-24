@@ -15,7 +15,10 @@ Title: {paper['title']}
 
 Summary: {paper['summary']}
 
-Interview Transcript in SSML:"""
+Interview Transcript in SSML:
+
+Keep the podcast to 5 minutes."""
+
 
     if image_descriptions:
         image_context = "\n\n".join(image_descriptions)
