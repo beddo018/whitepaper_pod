@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from flask import current_app, jsonify
-from elevenlabs import ElevenLabs
+from elevenlabs import ElevenLabs, VoiceSettings
 from pydub import AudioSegment
 import tempfile
 import json
@@ -27,7 +27,7 @@ class TTSMiddleware:
         
         # Placeholder voice IDs for 5 distinct speakers
         self.voice_mapping = {
-         'speaker_1': 'iP95p4xoKVk53GoZ742B',  
+        'speaker_1': 'iP95p4xoKVk53GoZ742B',  
         'speaker_2': 'EXAVITQu4vr4xnSDxMaL',
         'speaker_3': '9BWtsMINqrJLrRacOk9x',
         'speaker_4': 'XrExE9yKIg1WjnnlVkGX',
@@ -42,7 +42,7 @@ class TTSMiddleware:
         self.app = app
         
         # Initialize ElevenLabs client
-        api_key = app.config.get('ELEVENLABS_API_KEY', 'YOUR_API_KEY')
+        api_key = os.getenv('ELEVENLABS_API_KEY')
         self.client = ElevenLabs(api_key=api_key)
         
         # Update voice mapping from config if provided
@@ -123,8 +123,13 @@ class TTSMiddleware:
             # Generate speech using ElevenLabs API
             audio = self.client.text_to_speech.convert(
                 text=text,
-                voice=voice_id,
-                model="eleven_monolingual_v1"  # You can change this model as needed
+                voice_id=voice_id,
+                model_id="eleven_flash_v2_5",  # You can change this model as needed
+                output_format="mp3_44100_128",
+                voice_settings=VoiceSettings(
+                    stability=0.5,
+                    similarity_boost=0.75,
+                )
             )
             
             # Convert generator to bytes
@@ -202,7 +207,7 @@ class TTSMiddleware:
             logger.error(f"Failed to save to database: {str(e)}")
             raise
     
-    def convert_to_audio(self, transcript: str, filename: str) -> str:
+    def convert_to_audio(self, transcript: list[dict], filename: str) -> str:
         """
         Main middleware function to convert transcript to audio
         
@@ -217,7 +222,7 @@ class TTSMiddleware:
             logger.info(f"Starting audio conversion for file: {filename}")
             
             # Parse transcript into segments
-            segments = self._parse_transcript(transcript)
+            segments = transcript
             
             if not segments:
                 raise ValueError("No segments found in transcript")
@@ -256,7 +261,8 @@ class TTSMiddleware:
         except Exception as e:
             logger.error(f"Audio conversion failed: {str(e)}")
             raise
-        
-        
-        audio_path = tts_middleware.convert_to_audio(sample_transcript_list, "my_podcast")
-        print(audio_path)
+
+if __name__ == "__main__":
+    tts = TTSMiddleware()
+    audio_path = tts.convert_to_audio(sample_transcript_list, "my_podcast")
+    print(audio_path)
