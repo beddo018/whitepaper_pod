@@ -16,8 +16,11 @@ os.environ['FLASK_DEBUG'] = '1'
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-# Import the Celery app from the Flask application
+# Import the Celery app and tasks from the Flask application
 from src.app import celery, process_paper_async
+
+# Ensure the task is registered
+celery.autodiscover_tasks(['src.app'])
 
 if __name__ == '__main__':
     # Start the Celery worker
