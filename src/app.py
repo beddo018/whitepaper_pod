@@ -92,14 +92,21 @@ def upload_pdf():
 def process_paper_async(paper_url, paper_title):
     try:
         pdf_content = query_for_pdf(paper_url)
+        print(pdf_content)
         if not pdf_content:
             raise Exception("Failed to retrieve the PDF content")
 
         text, image_descriptions = process_pdf(pdf_content)
+        options = {
+            "length_minutes" : 5, 
+            "listener_expertise_level" : 
+            "Intermediate", "number_of_speakers" : 3 
+        };
+
         transcript = generate_transcript({
             "title": paper_title,
             "summary": text
-        }, image_descriptions)
+        }, options, image_descriptions)
 
         filename = f"{paper_title.replace(' ', '_')}.mp3"
         audio_path = convert_to_audio(transcript, filename)

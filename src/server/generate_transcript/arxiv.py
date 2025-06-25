@@ -31,9 +31,19 @@ def query(query_params):
     return papers
 
 def query_for_pdf(paper_url):
-    pdf_url = f"{paper_url}.pdf"
+    pdf_url = paper_url.replace('abs','pdf')
+    print(pdf_url)
     try:
         with libreq.urlopen(pdf_url) as response:
-            return response.read()
+            print(response.headers)
+            return response.read().decode(response.headers.get_content_charset())
     except Exception as e:
         raise Exception(f"Failed to retrieve the PDF: {e}")
+    
+if __name__ == "__main__":
+    content = query_for_pdf("http://arxiv.org/abs/1911.06612v1")
+    print("ARTICLE SUMMARY:\n~~~~~~~~\n")
+
+    print(f"String saved to {file_name}")
+    
+    print("ARTICLE END:\n~~~~~~~~\n")

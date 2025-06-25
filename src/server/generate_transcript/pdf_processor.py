@@ -4,6 +4,7 @@ from openai import OpenAI
 import base64
 from PIL import Image
 import io
+from sample import content
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -36,7 +37,7 @@ def analyze_image(image):
                     "content": [
                         {
                             "type": "text",
-                            "text": "Please analyze this figure from a scientific paper. Describe what it shows, its key findings, and any important patterns or relationships. Format your response as if you were explaining it to someone in a podcast."
+                            "text": "Please analyze this figure from a scientific paper. Describe what it shows, its key findings, and any important patterns or relationships you notice."
                         },
                         {
                             "type": "image_url",
@@ -89,3 +90,7 @@ def process_pdf(pdf_content):
     except Exception as e:
         print(f"Error processing PDF: {str(e)}")
         raise
+
+if __name__ == "__main__":
+    paper = process_pdf(content)
+    print(paper)
