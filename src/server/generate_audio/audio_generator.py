@@ -36,6 +36,8 @@ class TTSMiddleware:
         self.db_path = 'podcast_audio.db'
         # Initialize database
         self._init_database()
+        # Create audio directory
+        self._create_audio_directory()
         
         # voice IDs for 10 distinct speakers
         # https://elevenlabs.io/app/default-voices
@@ -67,18 +69,6 @@ class TTSMiddleware:
         voice_config = app.config.get('VOICE_MAPPING', {})
         self.voice_mapping.update(voice_config)
         
-        
-        # Create audio directory
-        self._create_audio_directory()
-    
- 
- 
- 
- 
- 
- 
- 
- 
  
     def _init_database(self):
         """Initialize SQLite database for storing audio files"""
@@ -117,14 +107,6 @@ class TTSMiddleware:
             logger.error(f"Database initialization failed: {str(e)}")
             print(f"Database error: {str(e)}")  # Add this for immediate feedback
             raise 
- 
- 
- 
- 
- 
- 
- 
- 
  
     
     def _create_audio_directory(self):
