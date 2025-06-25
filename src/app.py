@@ -5,7 +5,7 @@ from server.generate_transcript.arxiv import query, query_for_pdf
 from server.generate_transcript.transcript_generator import generate_transcript
 
 from server.generate_transcript.pdf_processor import process_pdf
-from server.generate_audio.TTSMiddleware import TTSMiddleware
+from server.generate_audio.audio_generator import TTSMiddleware
 import os
 import sqlite3
 import logging
