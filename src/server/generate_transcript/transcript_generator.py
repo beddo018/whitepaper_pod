@@ -14,7 +14,7 @@ def generate_transcript(paper, options, image_descriptions=None):
     # Using the new SDK style (Anthropic class)
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=5000,
+        max_tokens=2000,
         temperature=0.7,
         system=build_system_prompt(),
         messages=[
