@@ -23,15 +23,47 @@ logger = logging.getLogger(__name__)
 
 from celery import Celery
 import os
+import socket
 from pathlib import Path
+from flask import Flask, render_template, send_from_directory, jsonify, request, redirect
+from src.server.generate_transcript.arxiv import query, query_for_pdf
+from src.server.generate_transcript.transcript_generator import generate_transcript
+from src.server.generate_audio.text_to_speech_openai import convert_to_audio
+from src.server.generate_transcript.pdf_processor import process_pdf
+from celery import Celery
 
-# Initialize Flask app with correct template and static folders
-app = Flask(__name__, 
-           template_folder='client/templates',
-           static_folder='client/static')
+# Check if we're in development mode
+DEV_MODE = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('FLASK_DEBUG') == '1'
+
+# Initialize Flask app with React's build folder as static folder
+if DEV_MODE:
+    # In development, we only serve API routes - React is served by Vite
+    app = Flask(__name__)
+    print("Running in DEVELOPMENT mode - React hot-reload available on http://localhost:8080")
+else:
+    # In production, serve from built dist folder
+    app = Flask(__name__,
+                static_folder='client/dist',
+                template_folder='client/dist')
+    print("Running in PRODUCTION mode - serving built React app")
 
 # Initialize Celery
-celery = Celery('whitepaper_pod', broker='redis://localhost:6379/0')
+celery = Celery('whitepaper_pod', 
+                broker='redis://localhost:6379/0',
+                backend='redis://localhost:6379/0')
+
+# Configure Celery
+celery.conf.update(
+    task_serializer='json',
+    accept_content=['json'],
+    result_serializer='json',
+    timezone='UTC',
+    enable_utc=True,
+    task_routes={
+        'src.app.process_paper_async': {'queue': 'celery'}
+    },
+    imports=['src.app']
+)
 
 # Ensure required directories exist
 Path('src/client/static/audio').mkdir(parents=True, exist_ok=True)
@@ -54,25 +86,42 @@ def search_papers():
     
     return jsonify(papers)
 
+@app.route('/api/upload_pdf', methods=['POST'])
+def upload_pdf():
+    """Handle PDF file uploads"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    if file and file.filename.endswith('.pdf'):
+        # For now, just return a mock response
+        # In a real implementation, you'd save the file and process it
+        return jsonify({
+            "success": True,
+            "filename": file.filename,
+            "title": file.filename.replace('.pdf', ''),
+            "message": "PDF uploaded successfully"
+        })
+    
+    return jsonify({"error": "Invalid file type"}), 400
+
 @celery.task
-def process_paper_async(paper_url, paper_title):
-    """
-    Asynchronous task to process a paper
-    """
+def process_paper_async(paper_url, paper_title, podcast_settings=None):
     try:
-        # Get PDF content
         pdf_content = query_for_pdf(paper_url)
         if not pdf_content:
             raise Exception("Failed to retrieve the PDF content")
 
-        # Process PDF
         text, image_descriptions = process_pdf(pdf_content)
         
-        # Generate transcript
+        # Pass podcast settings to transcript generator
         transcript = generate_transcript({
             "title": paper_title,
             "summary": text
-        }, image_descriptions)
+        }, image_descriptions, podcast_settings)
 
         # Generate audio
         filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}.mp3"
@@ -88,7 +137,7 @@ def process_paper_async(paper_url, paper_title):
         print(f"Error processing paper: {str(e)}")
         raise
 
-@app.route('/generate_podcast', methods=['POST'])
+@app.route('/api/generate_podcast', methods=['POST'])
 def generate_podcast():
     if not request.json:
         return jsonify({"error": "No JSON data provided"}), 400
@@ -100,13 +149,12 @@ def generate_podcast():
         return jsonify({"error": "Missing paper_id or paper_title"}), 400
 
     try:
-        # Start async processing
-        task = process_paper_async.delay(selected_paper_url, selected_paper_title)
+        task = process_paper_async.delay(selected_paper_url, selected_paper_title, podcast_settings)
         return jsonify({"task_id": task.id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/task_status/<task_id>')
+@app.route('/api/task_status/<task_id>')
 def task_status(task_id):
     task = process_paper_async.AsyncResult(task_id)
     if task.ready():
@@ -114,7 +162,11 @@ def task_status(task_id):
             return jsonify(task.result)
         else:
             return jsonify({"error": str(task.result)}), 500
-    return jsonify({"status": "processing"})
+    return jsonify({
+        "status": "processing",
+        "current_step": "Processing document...",
+        "progress": 50
+    })
 
 @app.route('/static/audio/<filename>')
 def serve_audio(filename):
@@ -162,4 +214,11 @@ def download_audio(filename):
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Allow port override via environment variable
+    default_port = int(os.environ.get('FLASK_PORT', 5000))
+    port = find_available_port(start_port=default_port)
+    print(f"🚀 Starting Flask server on port {port}")
+    if port != default_port:
+        print(f"⚠️  Port {default_port} was busy, using port {port} instead")
+        print(f"📝 Update your Vite proxy config if needed: target: 'http://localhost:{port}'")
+    app.run(debug=True, port=port)
