@@ -170,7 +170,7 @@ def task_status(task_id):
 
 @app.route('/static/audio/<filename>')
 def serve_audio(filename):
-    return send_from_directory('src/client/static/audio', filename)
+    return send_from_directory('src/audio', filename)
 
 @app.route('/convert-to-audio', methods=['POST'])
 def convert_text_to_audio():
