@@ -28,7 +28,7 @@ from pathlib import Path
 from flask import Flask, render_template, send_from_directory, jsonify, request, redirect
 from src.server.generate_transcript.arxiv import query, query_for_pdf
 from src.server.generate_transcript.transcript_generator import generate_transcript
-from src.server.generate_audio.text_to_speech_openai import convert_to_audio
+from src.server.generate_audio.audio_generator import TTSMiddleware
 from src.server.generate_transcript.pdf_processor import process_pdf
 from celery import Celery
 
