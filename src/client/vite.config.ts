@@ -10,11 +10,11 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: `http://localhost:${process.env.FLASK_PORT || 5000}`,
         changeOrigin: true,
       },
       '/static': {
-        target: 'http://localhost:5001',
+        target: `http://localhost:${process.env.FLASK_PORT || 5000}`,s
         changeOrigin: true,
       }
     }

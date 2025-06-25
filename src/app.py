@@ -1,4 +1,5 @@
 import os
+import socket
 from pathlib import Path
 from flask import Flask, render_template, send_from_directory, jsonify, request, redirect
 from src.server.generate_transcript.arxiv import query, query_for_pdf
@@ -34,6 +35,10 @@ celery.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
+    task_routes={
+        'src.app.process_paper_async': {'queue': 'celery'}
+    },
+    imports=['src.app']
 )
 
 # Ensure required directories exist
@@ -89,7 +94,7 @@ def upload_pdf():
     return jsonify({"error": "Invalid file type"}), 400
 
 @celery.task
-def process_paper_async(paper_url, paper_title):
+def process_paper_async(paper_url, paper_title, podcast_settings=None):
     try:
         pdf_content = query_for_pdf(paper_url)
         print(pdf_content)
@@ -124,9 +129,10 @@ def process_paper_async(paper_url, paper_title):
 def generate_podcast():
     selected_paper_url = request.json.get('paper_id')
     selected_paper_title = request.json.get('paper_title')
+    podcast_settings = request.json.get('settings')  # Get podcast settings
 
     try:
-        task = process_paper_async.delay(selected_paper_url, selected_paper_title)
+        task = process_paper_async.delay(selected_paper_url, selected_paper_title, podcast_settings)
         return jsonify({"task_id": task.id})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -149,5 +155,23 @@ def task_status(task_id):
 def serve_audio(filename):
     return send_from_directory('src/client/static/audio', filename)
 
+def find_available_port(start_port=5000, max_attempts=10):
+    """Find an available port starting from start_port"""
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return port
+        except OSError:
+            continue
+    return start_port  # Fallback to original port if all attempts fail
+
 if __name__ == '__main__':
-    app.run(port=5001,debug=True)
+    # Allow port override via environment variable
+    default_port = int(os.environ.get('FLASK_PORT', 5000))
+    port = find_available_port(start_port=default_port)
+    print(f"🚀 Starting Flask server on port {port}")
+    if port != default_port:
+        print(f"⚠️  Port {default_port} was busy, using port {port} instead")
+        print(f"📝 Update your Vite proxy config if needed: target: 'http://localhost:{port}'")
+    app.run(debug=True, port=port)
