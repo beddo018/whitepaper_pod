@@ -6,8 +6,9 @@ sample_transcript_list = [
     },
     {
         "speaker": "male_speaker_1",
-        "text": "Hello everyone, I'm Tom Wilson." 
-        # We're joined today by Maria Gonzalez, founder of three successful startups and author of 'Digital Disruption'."
+        "text": 
+            # "Hello everyone, I'm Tom Wilson." 
+        "We're joined today by Maria Gonzalez, founder of three successful startups and author of 'Digital Disruption'."
     },
     # {
     #     "speaker": "female_speaker_2",

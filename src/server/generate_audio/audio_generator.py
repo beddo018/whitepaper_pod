@@ -34,6 +34,8 @@ class TTSMiddleware:
         self.app = app
         self.client = None
         self.db_path = 'podcast_audio.db'
+        # Initialize database
+        self._init_database()
         
         # voice IDs for 10 distinct speakers
         # https://elevenlabs.io/app/default-voices
@@ -65,15 +67,30 @@ class TTSMiddleware:
         voice_config = app.config.get('VOICE_MAPPING', {})
         self.voice_mapping.update(voice_config)
         
-        # Initialize database
-        self._init_database()
         
         # Create audio directory
         self._create_audio_directory()
     
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
     def _init_database(self):
         """Initialize SQLite database for storing audio files"""
+        print(f"Initializing database at: {self.db_path}")  # Add this
+        
         try:
+            # Check if directory exists
+            import os
+            db_dir = os.path.dirname(self.db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir)
+                
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
@@ -87,13 +104,28 @@ class TTSMiddleware:
                 )
             ''')
             
+            # Verify table was created
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='audio_files'")
+            result = cursor.fetchone()
+            print(f"Table exists: {result is not None}")  # Add this
+            
             conn.commit()
             conn.close()
             logger.info("Database initialized successfully")
             
         except Exception as e:
             logger.error(f"Database initialization failed: {str(e)}")
-            raise
+            print(f"Database error: {str(e)}")  # Add this for immediate feedback
+            raise 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
     
     def _create_audio_directory(self):
         """Create audio directory if it doesn't exist"""
