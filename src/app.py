@@ -3,7 +3,7 @@ import time
 from flask import Flask, request, jsonify, send_from_directory, render_template, send_file
 from server.generate_transcript.arxiv import query, query_for_pdf
 from server.generate_transcript.transcript_generator import generate_transcript
-from server.generate_audio.text_to_speech_openai import convert_to_audio
+
 from server.generate_transcript.pdf_processor import process_pdf
 from server.generate_audio.TTSMiddleware import TTSMiddleware
 import os
@@ -96,7 +96,7 @@ def process_paper_async(paper_url, paper_title):
 
         # Generate audio
         filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}.mp3"
-        audio_path = convert_to_audio(transcript, filename)
+        audio_path = tts_middleware.convert_to_audio(transcript, filename) #transcript needs to be a list of dicts
 
         return {
             "title": paper_title,

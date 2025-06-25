@@ -157,6 +157,8 @@ class TTSMiddleware:
         """
         Combine multiple audio segments into a single MP3 file
         """
+        print(audio_segments, "audio_segments!!!!!!!!!!!!!!!!!!!!!!!!")
+        
         try:
             combined_audio = AudioSegment.empty()
             
@@ -165,10 +167,14 @@ class TTSMiddleware:
                 with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
                     temp_file.write(audio_bytes)
                     temp_file_path = temp_file.name
+                    print(audio_bytes, "audio_bytes!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print(temp_file_path, "temp_file_path!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print(filename, "filename!!!!!!!!!!!!!!!!!!!!!!!!")
                 
                 try:
                     # Load audio segment
-                    segment = AudioSegment.from_mp3(temp_file_path)
+                    segment = AudioSegment.from_file(temp_file_path, format="mp3")
+                    print("MP3 segment loaded!!!!!!!!!!!!!!!!!!!!!!!!!")
                     
                     # Add small pause between segments (0.5 seconds)
                     if i > 0:
@@ -176,6 +182,19 @@ class TTSMiddleware:
                         combined_audio += pause
                     
                     combined_audio += segment
+                    
+                except:
+                    # in case of some cases where mp3 files contain AAC audio, but the container format is mpeg4
+                     # Load audio segment
+                    segment = AudioSegment.from_file(temp_file_path, format="mp4")
+                    print("MP4 segment loaded!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    
+                    # Add small pause between segments (0.5 seconds)
+                    if i > 0:
+                        pause = AudioSegment.silent(duration=500)
+                        combined_audio += pause
+                    
+                    combined_audio += segment    
                     
                 finally:
                     # Clean up temporary file
