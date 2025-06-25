@@ -37,27 +37,7 @@ celery = Celery('whitepaper_pod', broker='redis://localhost:6379/0')
 Path('src/client/static/audio').mkdir(parents=True, exist_ok=True)
 Path('tmp').mkdir(exist_ok=True)
 
-def create_tts_middleware(app):
-    """
-    Factory function to create and configure TTS middleware
-    """
-    # Configure ElevenLabs API key and voice mapping
-    app.config['ELEVENLABS_API_KEY'] = 'YOUR_API_KEY'  # Replace with actual API key
-    app.config['VOICE_MAPPING'] = {
-        'speaker_1': 'iP95p4xoKVk53GoZ742B',  # Replace with actual voice IDs
-        'speaker_2': 'EXAVITQu4vr4xnSDxMaL',
-        'speaker_3': '9BWtsMINqrJLrRacOk9x',
-        'speaker_4': 'XrExE9yKIg1WjnnlVkGX',
-        'speaker_5': 'onwK4e9ZLuTAKqWW03F9',
-    }
-    
-    # Create and initialize middleware
-    tts_middleware = TTSMiddleware(app)
-    
-    return tts_middleware
 
-# Initialize TTS middleware
-tts_middleware = create_tts_middleware(app)
 
 @app.route('/')
 def index():
@@ -96,6 +76,7 @@ def process_paper_async(paper_url, paper_title):
 
         # Generate audio
         filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}.mp3"
+        tts_middleware = TTSMiddleware()
         audio_path = tts_middleware.convert_to_audio(transcript, filename) #transcript needs to be a list of dicts
 
         return {

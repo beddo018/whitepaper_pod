@@ -33,13 +33,19 @@ class TTSMiddleware:
         self.client = None
         self.db_path = 'podcast_audio.db'
         
-        # Placeholder voice IDs for 5 distinct speakers
+        # voice IDs for 10 distinct speakers
+        # https://elevenlabs.io/app/default-voices
         self.voice_mapping = {
-        'speaker_1': 'iP95p4xoKVk53GoZ742B',  
-        'speaker_2': 'EXAVITQu4vr4xnSDxMaL',
-        'speaker_3': '9BWtsMINqrJLrRacOk9x',
-        'speaker_4': 'XrExE9yKIg1WjnnlVkGX',
-        'speaker_5': 'onwK4e9ZLuTAKqWW03F9',  
+        'female_speaker_1': '9BWtsMINqrJLrRacOk9x',  #Aria
+        'female_speaker_2': 'EXAVITQu4vr4xnSDxMaL', #Sarah
+        'female_speaker_3': 'Xb7hH8MSUJpSbSDYk0k2', #Alice
+        'female_speaker_4': 'XrExE9yKIg1WjnnlVkGX', #Matilda
+        'female_speaker_5': 'pFZP5JQG7iQjIQuC4Bku', #Lily
+        'male_speaker_1': 'JBFqnCBsd6RMkjVDRZzb', #George
+        'male_speaker_2': 'TX3LPaxmHKxFdv7VOQHJ', #Liam
+        'male_speaker_3': 'bIHbv24MWmeRgasZH58o', #Will
+        'male_speaker_4': 'iP95p4xoKVk53GoZ742B', #Chris
+        'male_speaker_5': 'pqHfZKP75CvOlQylNhV4', #Bill
         }
         
         if app is not None:
