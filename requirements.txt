@@ -12,3 +12,4 @@ redis
 Pillow
 python-dotenv
 anthropic
+elevenlabs
