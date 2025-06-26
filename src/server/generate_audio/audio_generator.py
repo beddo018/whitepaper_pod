@@ -9,7 +9,7 @@ from elevenlabs import ElevenLabs, VoiceSettings, text_to_speech, play
 from pydub import AudioSegment
 import tempfile
 import json
-from transcript import sample_transcript_list
+from src.server.generate_audio.transcript import sample_transcript_list
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -96,7 +96,7 @@ class TTSMiddleware:
     def _create_audio_directory(self):
         """Create audio directory if it doesn't exist"""
         try:
-            audio_dir = 'audio'
+            audio_dir = 'src/client/static/audio'
             if not os.path.exists(audio_dir):
                 os.makedirs(audio_dir)
                 logger.info(f"Created audio directory: {audio_dir}")
@@ -207,7 +207,7 @@ class TTSMiddleware:
                     os.unlink(temp_file_path)
             
             # Save combined audio
-            output_path = os.path.join('audio', f"{filename}.mp3")
+            output_path = os.path.join('src/client/static/audio', f"{filename}.mp3")
             combined_audio.export(output_path, format="mp3")
             
             logger.info(f"Combined audio saved to: {output_path}")

@@ -1,36 +1,18 @@
-import subprocess
 import time
-from flask import Flask, request, jsonify, send_from_directory, render_template, send_file
-from server.generate_transcript.arxiv import query, query_for_pdf
-from server.generate_transcript.transcript_generator import generate_transcript
-
-from server.generate_transcript.pdf_processor import process_pdf
-from server.generate_audio.audio_generator import TTSMiddleware
-import os
-import sqlite3
-import logging
-from datetime import datetime
-from typing import List, Dict, Tuple, Optional
-from flask import current_app, jsonify
-from elevenlabs import ElevenLabs
-from pydub import AudioSegment
-import tempfile
-import json
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-from celery import Celery
 import os
 import socket
+import logging
 from pathlib import Path
-from flask import Flask, render_template, send_from_directory, jsonify, request, redirect
+from flask import Flask, render_template, send_from_directory, jsonify, request, send_file
 from src.server.generate_transcript.arxiv import query, query_for_pdf
 from src.server.generate_transcript.transcript_generator import generate_transcript
 from src.server.generate_audio.audio_generator import TTSMiddleware
 from src.server.generate_transcript.pdf_processor import process_pdf
 from celery import Celery
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Check if we're in development mode
 DEV_MODE = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('FLASK_DEBUG') == '1'
@@ -69,13 +51,22 @@ celery.conf.update(
 Path('src/client/static/audio').mkdir(parents=True, exist_ok=True)
 Path('tmp').mkdir(exist_ok=True)
 
+print(f"Static folder: {app.static_folder}")
 
+# Only serve React app in production mode
+if not DEV_MODE:
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_react_app(path):
+        """
+        Serve React app for all non-API routes.
+        """
+        file_path = os.path.join(app.static_folder, path)
+        if os.path.exists(file_path):  # Serve the requested file if it exists
+            return send_from_directory(app.static_folder, path)
+        return send_from_directory(app.static_folder, 'index.html')  # Default to index.html
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/search_papers', methods=['POST'])
+@app.route('/api/search_papers', methods=['POST'])
 def search_papers():
     query_string = request.json.get('query_string')
     query_params = f"search_query={query_string}&max_results=10"
@@ -122,16 +113,16 @@ def process_paper_async(paper_url, paper_title, podcast_settings=None):
             "title": paper_title,
             "summary": text
         }, image_descriptions, podcast_settings)
-
-        # Generate audio
-        filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}.mp3"
+                # Generate audio
+        filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}"
         tts_middleware = TTSMiddleware()
         audio_path = tts_middleware.convert_to_audio(transcript, filename) #transcript needs to be a list of dicts
 
         return {
             "title": paper_title,
             "transcript": transcript,
-            "audio_url": f"/static/audio/{filename}"
+            "audio_url": f"/static/audio/{filename}",
+            "audio_path": audio_path
         }
     except Exception as e:
         print(f"Error processing paper: {str(e)}")
@@ -141,10 +132,11 @@ def process_paper_async(paper_url, paper_title, podcast_settings=None):
 def generate_podcast():
     if not request.json:
         return jsonify({"error": "No JSON data provided"}), 400
-    
+
     selected_paper_url = request.json.get('paper_id')
     selected_paper_title = request.json.get('paper_title')
-    
+    podcast_settings = request.json.get('settings')  # Get podcast settings
+
     if not selected_paper_url or not selected_paper_title:
         return jsonify({"error": "Missing paper_id or paper_title"}), 400
 
@@ -176,16 +168,18 @@ def serve_audio(filename):
 def convert_text_to_audio():
     try:
         data = request.get_json()
-        
+
         if not data or 'transcript' not in data or 'filename' not in data:
             return jsonify({'error': 'Missing transcript or filename'}), 400
-        
+
         transcript = data['transcript']
         filename = data['filename']
-        
+
+        tts_middleware = TTSMiddleware()
+
         # Convert to audio using middleware
         audio_path = tts_middleware.convert_to_audio(transcript, filename)
-        
+
         # Return success response with file path
         return jsonify({
             'success': True,
@@ -193,7 +187,7 @@ def convert_text_to_audio():
             'filename': filename,
             'audio_path': audio_path
         })
-        
+
     except ValueError as e:
         return jsonify({'error': f'Invalid input: {str(e)}'}), 400
     except Exception as e:
@@ -212,6 +206,17 @@ def download_audio(filename):
     except Exception as e:
         logger.error(f"Download error: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+def find_available_port(start_port=5000, max_attempts=10):
+    """Find an available port starting from start_port"""
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return port
+        except OSError:
+            continue
+    return start_port  # Fallback to original port if all attempts fail
 
 if __name__ == '__main__':
     # Allow port override via environment variable
