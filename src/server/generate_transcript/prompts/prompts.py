@@ -51,13 +51,15 @@ def build_system_prompt():
 
     The most important goals are that the listener understands the paper at the end of the podcast and that they are entertained and engaged throughout.
 
-    The transcript should be output as a list of python dictionaries like this example: 
+    The transcript should be output as a VALID JSON array of objects like this example: 
     
     {transcript_example}
 
     {rules}
 
     The paper may contain images, in that case, they will be translated to image descriptions and appended at the end of the paper. This may not be where they appear organically in the paper.
+
+    CRITICAL: Ensure your response is valid JSON. Do not include any text before the opening '[' or after the closing ']'. Make sure all strings are properly quoted and escaped. Do not truncate the response mid-sentence or mid-object.
 
     return the transcript and only the transcript in this format as your response. Do not include any other text in your response.
     """
@@ -86,7 +88,7 @@ Title: {paper['title']}
 Summary: {paper['summary']}"""
     
     if image_descriptions:
-        image_context = "\n\n".join(image_descriptions)
-        prompt += f"\n\nImage Descriptions:\n{image_context}"
+        image_context = "\n\n".join([f"Page {desc['page']}, Image {desc['image']}: {desc['description']}" for desc in image_descriptions])
+        user_prompt += f"\n\nImage Descriptions:\n{image_context}"
 
     return user_prompt 

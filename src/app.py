@@ -42,7 +42,7 @@ celery.conf.update(
     timezone='UTC',
     enable_utc=True,
     task_routes={
-        'src.app.process_paper_async': {'queue': 'celery'}
+        'whitepaper_pod.process_paper_async': {'queue': 'celery'}
     },
     imports=['src.app']
 )
@@ -99,41 +99,45 @@ def upload_pdf():
     
     return jsonify({"error": "Invalid file type"}), 400
 
-@celery.task
+@celery.task(name='whitepaper_pod.process_paper_async')
 def process_paper_async(paper_url, paper_title, podcast_settings=None):
     try:
         pdf_content = query_for_pdf(paper_url)
-        print(pdf_content)
         if not pdf_content:
             raise Exception("Failed to retrieve the PDF content")
 
         text, image_descriptions = process_pdf(pdf_content)
-        options = {
-            "length_minutes" : 5, 
-            "listener_expertise_level" : 
-            "Intermediate", "number_of_speakers" : 3 
-        };
+        
+        # Use podcast settings from frontend, with defaults
+        if podcast_settings:
+            options = {
+                "length_minutes": podcast_settings.get("length", 5),
+                "listener_expertise_level": podcast_settings.get("expertise", "Intermediate"),
+                "number_of_speakers": podcast_settings.get("speakers", 3)
+            }
+            print(f"Using frontend settings: {options}")
+        else:
+            options = {
+                "length_minutes": 5, 
+                "listener_expertise_level": "Intermediate", 
+                "number_of_speakers": 3 
+            }
+            print(f"Using default settings: {options}")
 
         transcript = generate_transcript({
             "title": paper_title,
             "summary": text
-<<<<<<< transcript-generation
         }, options, image_descriptions)
-
-        filename = f"{paper_title.replace(' ', '_')}.mp3"
-        audio_path = convert_to_audio(transcript, filename)
-=======
-        }, image_descriptions, podcast_settings)
-                # Generate audio
+        
+        # Generate audio
         filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}"
         tts_middleware = TTSMiddleware()
-        audio_path = tts_middleware.convert_to_audio(transcript, filename) #transcript needs to be a list of dicts
->>>>>>> main
+        audio_path = tts_middleware.convert_to_audio(transcript, filename)
 
         return {
             "title": paper_title,
             "transcript": transcript,
-            "audio_url": f"/static/audio/{filename}",
+            "audio_url": f"/static/audio/{filename}.mp3",
             "audio_path": audio_path
         }
     except Exception as e:
@@ -148,6 +152,11 @@ def generate_podcast():
     selected_paper_url = request.json.get('paper_id')
     selected_paper_title = request.json.get('paper_title')
     podcast_settings = request.json.get('settings')  # Get podcast settings
+
+    print(f"Received podcast generation request:")
+    print(f"  Paper URL: {selected_paper_url}")
+    print(f"  Paper Title: {selected_paper_title}")
+    print(f"  Settings: {podcast_settings}")
 
     if not selected_paper_url or not selected_paper_title:
         return jsonify({"error": "Missing paper_id or paper_title"}), 400
@@ -174,7 +183,7 @@ def task_status(task_id):
 
 @app.route('/static/audio/<filename>')
 def serve_audio(filename):
-    return send_from_directory('src/audio', filename)
+    return send_from_directory('src/client/static/audio', filename)
 
 @app.route('/convert-to-audio', methods=['POST'])
 def convert_text_to_audio():
@@ -210,7 +219,7 @@ def convert_text_to_audio():
 def download_audio(filename):
     """Download generated audio file"""
     try:
-        audio_path = os.path.join('audio', f"{filename}.mp3")
+        audio_path = os.path.join('src/client/static/audio', f"{filename}.mp3")
         if os.path.exists(audio_path):
             return send_file(audio_path, as_attachment=True)
         else:

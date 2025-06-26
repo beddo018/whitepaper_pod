@@ -2,14 +2,11 @@ import os
 from dotenv import load_dotenv
 import sqlite3
 import logging
-from datetime import datetime
-from typing import List, Dict, Tuple, Optional
-from flask import current_app, jsonify
-from elevenlabs import ElevenLabs, VoiceSettings, text_to_speech, play
+from typing import List, Dict
+from elevenlabs import ElevenLabs, VoiceSettings
 from pydub import AudioSegment
 import tempfile
 import json
-from src.server.generate_audio.transcript import sample_transcript_list
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -118,28 +115,6 @@ class TTSMiddleware:
             logger.error(f"Failed to create audio directory: {str(e)}")
             raise
     
-    def _parse_transcript(self, transcript: str) -> List[Dict]:
-        """
-        Parse transcript into speaker segments
-        Expected format: JSON string with speaker segments
-        Example: [{"speaker": "speaker_1", "text": "Hello world"}, ...]
-        """
-        try:
-            if isinstance(transcript, str):
-                segments = json.loads(transcript)
-            else:
-                segments = transcript
-                
-            # Validate segments structure
-            for segment in segments:
-                if not isinstance(segment, dict) or 'speaker' not in segment or 'text' not in segment:
-                    raise ValueError("Invalid transcript format")
-            
-            return segments
-        except (json.JSONDecodeError, ValueError) as e:
-            logger.error(f"Failed to parse transcript: {str(e)}")
-            raise ValueError(f"Invalid transcript format: {str(e)}")
-    
     def _generate_speech_segment(self, text: str, speaker: str) -> bytes:
         """
         Generate speech for a single text segment using ElevenLabs API
@@ -197,7 +172,7 @@ class TTSMiddleware:
         print(f"Processing {len(audio_segments)} audio segments for file: {filename}")
         
         # Ensure audio directory exists
-        audio_dir = 'audio'
+        audio_dir = 'src/client/static/audio'
         if not os.path.exists(audio_dir):
             os.makedirs(audio_dir)
             print(f"Created audio directory: {audio_dir}")
@@ -459,7 +434,7 @@ class TTSMiddleware:
         Main middleware function to convert transcript to audio
         
         Args:
-            transcript: JSON string or list of speaker segments
+            transcript: List of speaker segments with 'speaker' and 'text' fields
             filename: Base filename for the output audio file
             
         Returns:
@@ -468,15 +443,20 @@ class TTSMiddleware:
         try:
             logger.info(f"Starting audio conversion for file: {filename}")
             
-            # Parse transcript into segments
-            segments = transcript
+            # Validate transcript structure
+            if not isinstance(transcript, list):
+                raise ValueError("Transcript must be a list of segments")
             
-            if not segments:
+            if not transcript:
                 raise ValueError("No segments found in transcript")
             
             # Generate speech for each segment
             audio_segments = []
-            for segment in segments:
+            for i, segment in enumerate(transcript):
+                if not isinstance(segment, dict) or 'speaker' not in segment or 'text' not in segment:
+                    logger.warning(f"Invalid segment format at index {i}, skipping")
+                    continue
+                
                 speaker = segment['speaker']
                 text = segment['text']
                 
@@ -488,7 +468,7 @@ class TTSMiddleware:
                     audio_bytes = self._generate_speech_segment(text, speaker)
                     audio_segments.append(audio_bytes)
                 except Exception as e:
-                    logger.error(f"Failed to generate speech for segment: {str(e)}")
+                    logger.error(f"Failed to generate speech for segment {i}: {str(e)}")
                     # Continue with other segments instead of failing completely
                     continue
             
@@ -499,7 +479,7 @@ class TTSMiddleware:
             audio_path = self._combine_audio_segments(audio_segments, filename)
             
             # Save to database
-            transcript_str = json.dumps(segments) if isinstance(transcript, list) else transcript
+            transcript_str = json.dumps(transcript)
             self._save_to_database(filename, transcript_str, audio_path)
             
             logger.info(f"Audio conversion completed successfully: {audio_path}")
@@ -508,8 +488,3 @@ class TTSMiddleware:
         except Exception as e:
             logger.error(f"Audio conversion failed: {str(e)}")
             raise
-
-if __name__ == "__main__":
-    tts = TTSMiddleware()
-    audio_path = tts.convert_to_audio(sample_transcript_list, "my_podcast")
-    print(audio_path)

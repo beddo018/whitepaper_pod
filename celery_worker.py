@@ -22,6 +22,11 @@ from src.app import celery, process_paper_async
 # Ensure the task is registered
 celery.autodiscover_tasks(['src.app'])
 
+# Debug: Print registered tasks
+print("Registered tasks:")
+for task_name in celery.tasks.keys():
+    print(f"  - {task_name}")
+
 if __name__ == '__main__':
     # Start the Celery worker
     celery.worker_main(['worker', '--loglevel=info']) 
