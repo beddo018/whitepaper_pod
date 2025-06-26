@@ -1,11 +1,14 @@
 sample_transcript_list = [
     {
         "speaker": "female_speaker_1",
-        "text": "Good morning and welcome to The Business Hour. I'm Jennifer Adams, and today we're discussing entrepreneurship in the digital age."
+        "text": "Good morning and welcome to The Business Hour." 
+        # I'm Jennifer Adams, and today we're discussing entrepreneurship in the digital age."
     },
     {
         "speaker": "male_speaker_1",
-        "text": "Hello everyone, I'm Tom Wilson. We're joined today by Maria Gonzalez, founder of three successful startups and author of 'Digital Disruption'."
+        "text": 
+            # "Hello everyone, I'm Tom Wilson." 
+        "We're joined today by Maria Gonzalez, founder of three successful startups and author of 'Digital Disruption'."
     },
     # {
     #     "speaker": "female_speaker_2",
