@@ -103,20 +103,32 @@ def upload_pdf():
 def process_paper_async(paper_url, paper_title, podcast_settings=None):
     try:
         pdf_content = query_for_pdf(paper_url)
+        print(pdf_content)
         if not pdf_content:
             raise Exception("Failed to retrieve the PDF content")
 
         text, image_descriptions = process_pdf(pdf_content)
-        
-        # Pass podcast settings to transcript generator
+        options = {
+            "length_minutes" : 5, 
+            "listener_expertise_level" : 
+            "Intermediate", "number_of_speakers" : 3 
+        };
+
         transcript = generate_transcript({
             "title": paper_title,
             "summary": text
+<<<<<<< transcript-generation
+        }, options, image_descriptions)
+
+        filename = f"{paper_title.replace(' ', '_')}.mp3"
+        audio_path = convert_to_audio(transcript, filename)
+=======
         }, image_descriptions, podcast_settings)
                 # Generate audio
         filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}"
         tts_middleware = TTSMiddleware()
         audio_path = tts_middleware.convert_to_audio(transcript, filename) #transcript needs to be a list of dicts
+>>>>>>> main
 
         return {
             "title": paper_title,

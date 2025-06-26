@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
       },
       '/static': {
-        target: `http://localhost:${process.env.FLASK_PORT || 5000}`,
+        target: `http://localhost:${process.env.FLASK_PORT || 5000}`,s
         changeOrigin: true,
       }
     }
