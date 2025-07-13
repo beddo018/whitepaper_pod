@@ -11,6 +11,7 @@ interface PodcastSettings {
 }
 
 interface Document {
+  id?: string;
   title?: string;
   name?: string;
   filename?: string;
@@ -33,6 +34,10 @@ const PodcastGenerator: React.FC<PodcastGeneratorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [podcastUrl, setPodcastUrl] = useState<string>('');
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
 
   const steps = [
     { id: 'parsing', label: 'Parsing document content', duration: 2000 },
@@ -55,15 +60,26 @@ const PodcastGenerator: React.FC<PodcastGeneratorProps> = ({
 
     try {
       // Step 1: Start the podcast generation task
+      const requestBody = {
+        paper_id: document?.id || '',
+        paper_title: document?.title || document?.name || 'Unknown Document',
+        settings: {
+          length: parseInt(settings.length),
+          speakers: settings.style === 'single' ? 1 : 
+                   settings.style === 'host-expert' ? 2 :
+                   settings.style === 'roundtable-3' ? 3 : 4,
+          expertise: settings.expertiseLevel
+        }
+      };
+      
+      console.log('Sending podcast generation request:', requestBody);
+      
       const response = await fetch('/api/generate_podcast', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          paper_id: document?.url || '',
-          paper_title: document?.title || document?.name || 'Unknown Document'
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -102,6 +118,18 @@ const PodcastGenerator: React.FC<PodcastGeneratorProps> = ({
               setCurrentStep('Podcast generated successfully!');
               setIsGenerating(false);
               setPodcastUrl(result.audio_url);
+              
+              // Create audio element for playback
+              const audio = new Audio(result.audio_url);
+              audio.addEventListener('ended', () => setIsPlaying(false));
+              audio.addEventListener('loadedmetadata', () => {
+                setAudioDuration(audio.duration);
+              });
+              audio.addEventListener('timeupdate', () => {
+                setCurrentTime(audio.currentTime);
+                setAudioProgress((audio.currentTime / audio.duration) * 100);
+              });
+              setAudioElement(audio);
             } else {
               // Task failed
               clearInterval(pollInterval);
@@ -126,13 +154,26 @@ const PodcastGenerator: React.FC<PodcastGeneratorProps> = ({
   };
 
   const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-    // In a real implementation, this would control actual audio playback
+    if (audioElement) {
+      if (isPlaying) {
+        audioElement.pause();
+      } else {
+        audioElement.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
   };
 
   const handleDownload = () => {
-    // In a real implementation, this would trigger the download
-    console.log('Downloading podcast...');
+    if (podcastUrl) {
+      // Create a temporary link element to trigger download
+      const link = window.document.createElement('a') as HTMLAnchorElement;
+      link.href = podcastUrl;
+      link.download = `${document?.title || document?.name || 'podcast'}.mp3`;
+      window.document.body?.appendChild(link);
+      link.click();
+      window.document.body?.removeChild(link);
+    }
   };
 
   const getStyleLabel = (style: string) => {
@@ -143,6 +184,12 @@ const PodcastGenerator: React.FC<PodcastGeneratorProps> = ({
       'roundtable-4': 'Roundtable (4 people)'
     };
     return styleMap[style] || style;
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -205,7 +252,7 @@ const PodcastGenerator: React.FC<PodcastGeneratorProps> = ({
                     {document?.title || document?.name || 'Academic Paper Podcast'}
                   </h4>
                   <p className="text-sm text-gray-600 text-left">
-                    {settings.length} min • {getStyleLabel(settings.style)}
+                    {Math.round(audioDuration / 60) || settings.length} min • {getStyleLabel(settings.style)}
                   </p>
                 </div>
                 <Button
@@ -213,17 +260,21 @@ const PodcastGenerator: React.FC<PodcastGeneratorProps> = ({
                   size="sm"
                   onClick={handlePlayPause}
                   className="ml-4"
+                  disabled={!audioElement}
                 >
                   {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </Button>
               </div>
               
               <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '0%' }} />
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${audioProgress}%` }} 
+                />
               </div>
               <div className="flex justify-between text-xs text-gray-500">
-                <span>0:00</span>
-                <span>{settings.length}:00</span>
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(audioDuration)}</span>
               </div>
             </Card>
 

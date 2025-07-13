@@ -16,7 +16,11 @@ export default defineConfig(({ mode }) => ({
       '/static': {
         target: `http://localhost:${process.env.FLASK_PORT || 5000}`,
         changeOrigin: true,
-      }
+      },
+      '/download-audio': {
+        target: `http://localhost:${process.env.FLASK_PORT || 5000}`,
+        changeOrigin: true,
+      },
     }
   },
   plugins: [

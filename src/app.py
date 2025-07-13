@@ -1,12 +1,18 @@
+import time
 import os
 import socket
+import logging
 from pathlib import Path
-from flask import Flask, render_template, send_from_directory, jsonify, request, redirect
+from flask import Flask, render_template, send_from_directory, jsonify, request, send_file
 from src.server.generate_transcript.arxiv import query, query_for_pdf
 from src.server.generate_transcript.transcript_generator import generate_transcript
-from src.server.generate_audio.text_to_speech_openai import convert_to_audio
+from src.server.generate_audio.audio_generator import TTSMiddleware
 from src.server.generate_transcript.pdf_processor import process_pdf
 from celery import Celery
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Check if we're in development mode
 DEV_MODE = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('FLASK_DEBUG') == '1'
@@ -36,7 +42,7 @@ celery.conf.update(
     timezone='UTC',
     enable_utc=True,
     task_routes={
-        'src.app.process_paper_async': {'queue': 'celery'}
+        'whitepaper_pod.process_paper_async': {'queue': 'celery'}
     },
     imports=['src.app']
 )
@@ -93,7 +99,7 @@ def upload_pdf():
     
     return jsonify({"error": "Invalid file type"}), 400
 
-@celery.task
+@celery.task(name='whitepaper_pod.process_paper_async')
 def process_paper_async(paper_url, paper_title, podcast_settings=None):
     try:
         pdf_content = query_for_pdf(paper_url)
@@ -102,19 +108,37 @@ def process_paper_async(paper_url, paper_title, podcast_settings=None):
 
         text, image_descriptions = process_pdf(pdf_content)
         
-        # Pass podcast settings to transcript generator
+        # Use podcast settings from frontend, with defaults
+        if podcast_settings:
+            options = {
+                "length_minutes": podcast_settings.get("length", 5),
+                "listener_expertise_level": podcast_settings.get("expertise", "Intermediate"),
+                "number_of_speakers": podcast_settings.get("speakers", 3)
+            }
+            print(f"Using frontend settings: {options}")
+        else:
+            options = {
+                "length_minutes": 5, 
+                "listener_expertise_level": "Intermediate", 
+                "number_of_speakers": 3 
+            }
+            print(f"Using default settings: {options}")
+
         transcript = generate_transcript({
             "title": paper_title,
             "summary": text
-        }, image_descriptions, podcast_settings)
-
-        filename = f"{paper_title.replace(' ', '_')}.mp3"
-        audio_path = convert_to_audio(transcript, filename)
+        }, options, image_descriptions)
+        
+        # Generate audio
+        filename = f"{paper_title.replace(' ', '_')}_{int(time.time())}"
+        tts_middleware = TTSMiddleware()
+        audio_path = tts_middleware.convert_to_audio(transcript, filename)
 
         return {
             "title": paper_title,
             "transcript": transcript,
-            "audio_url": f"/static/audio/{filename}"
+            "audio_url": f"/static/audio/{filename}.mp3",
+            "audio_path": audio_path
         }
     except Exception as e:
         print(f"Error processing paper: {str(e)}")
@@ -122,9 +146,20 @@ def process_paper_async(paper_url, paper_title, podcast_settings=None):
 
 @app.route('/api/generate_podcast', methods=['POST'])
 def generate_podcast():
+    if not request.json:
+        return jsonify({"error": "No JSON data provided"}), 400
+
     selected_paper_url = request.json.get('paper_id')
     selected_paper_title = request.json.get('paper_title')
     podcast_settings = request.json.get('settings')  # Get podcast settings
+
+    print(f"Received podcast generation request:")
+    print(f"  Paper URL: {selected_paper_url}")
+    print(f"  Paper Title: {selected_paper_title}")
+    print(f"  Settings: {podcast_settings}")
+
+    if not selected_paper_url or not selected_paper_title:
+        return jsonify({"error": "Missing paper_id or paper_title"}), 400
 
     try:
         task = process_paper_async.delay(selected_paper_url, selected_paper_title, podcast_settings)
@@ -149,6 +184,49 @@ def task_status(task_id):
 @app.route('/static/audio/<filename>')
 def serve_audio(filename):
     return send_from_directory('src/client/static/audio', filename)
+
+@app.route('/convert-to-audio', methods=['POST'])
+def convert_text_to_audio():
+    try:
+        data = request.get_json()
+
+        if not data or 'transcript' not in data or 'filename' not in data:
+            return jsonify({'error': 'Missing transcript or filename'}), 400
+
+        transcript = data['transcript']
+        filename = data['filename']
+
+        tts_middleware = TTSMiddleware()
+
+        # Convert to audio using middleware
+        audio_path = tts_middleware.convert_to_audio(transcript, filename)
+
+        # Return success response with file path
+        return jsonify({
+            'success': True,
+            'message': 'Audio generated successfully',
+            'filename': filename,
+            'audio_path': audio_path
+        })
+
+    except ValueError as e:
+        return jsonify({'error': f'Invalid input: {str(e)}'}), 400
+    except Exception as e:
+        logger.error(f"Route error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/download-audio/<filename>')
+def download_audio(filename):
+    """Download generated audio file"""
+    try:
+        audio_path = os.path.join('src/client/static/audio', f"{filename}.mp3")
+        if os.path.exists(audio_path):
+            return send_file(audio_path, as_attachment=True)
+        else:
+            return jsonify({'error': 'Audio file not found'}), 404
+    except Exception as e:
+        logger.error(f"Download error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 def find_available_port(start_port=5000, max_attempts=10):
     """Find an available port starting from start_port"""

@@ -27,6 +27,7 @@ fi
 export FLASK_ENV=development
 export FLASK_DEBUG=1
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export PYTHONHTTPSVERIFY=0
 
 # Allow custom Flask port via environment variable
 export FLASK_PORT=${FLASK_PORT:-5000}
@@ -34,9 +35,34 @@ export FLASK_PORT=${FLASK_PORT:-5000}
 echo "🔧 Environment variables set for development mode"
 echo "🐍 Flask will attempt to use port: $FLASK_PORT"
 
-# Start Vite dev server in the background
+# Start Flask API server first to determine the actual port
+echo "🐍 Starting Flask API server..."
+cd "$(dirname "$0")"  # Return to script directory (project root)
+python src/app.py &
+FLASK_PID=$!
+
+# Wait for Flask to start and detect the actual port
+echo "⏳ Waiting for Flask to start..."
+sleep 5
+
+# Detect the actual port Flask is running on
+ACTUAL_PORT=$FLASK_PORT
+for port in $(seq $FLASK_PORT $((FLASK_PORT + 10))); do
+    if curl -s http://localhost:$port/api/search_papers > /dev/null 2>&1; then
+        ACTUAL_PORT=$port
+        break
+    fi
+done
+
+if [ "$ACTUAL_PORT" != "$FLASK_PORT" ]; then
+    echo "⚠️  Flask is running on port $ACTUAL_PORT (requested: $FLASK_PORT)"
+else
+    echo "✅ Flask API server is running on port $ACTUAL_PORT"
+fi
+
+# Start Vite dev server with the correct Flask port for proxy
 echo "⚛️ Starting Vite dev server on http://localhost:8080"
-cd src/client && FLASK_PORT=$FLASK_PORT npm run dev &
+cd src/client && FLASK_PORT=$ACTUAL_PORT npm run dev &
 VITE_PID=$!
 
 # Wait for Vite to start
@@ -49,32 +75,6 @@ if ! curl -s http://localhost:8080 > /dev/null; then
     exit 1
 fi
 echo "✅ Vite dev server is running"
-
-# Start Flask API server
-echo "🐍 Starting Flask API server..."
-cd "$(dirname "$0")"  # Return to script directory (project root)
-python src/app.py &
-FLASK_PID=$!
-
-# Wait for Flask to start and get the actual port
-echo "⏳ Waiting for Flask to start..."
-sleep 3
-
-# Try to detect the actual port Flask is running on
-ACTUAL_PORT=$FLASK_PORT
-for port in $(seq $FLASK_PORT $((FLASK_PORT + 10))); do
-    if curl -s http://localhost:$port/api/search_papers > /dev/null 2>&1; then
-        ACTUAL_PORT=$port
-        break
-    fi
-done
-
-if [ "$ACTUAL_PORT" != "$FLASK_PORT" ]; then
-    echo "⚠️  Flask is running on port $ACTUAL_PORT (requested: $FLASK_PORT)"
-    echo "📝 Update Vite proxy config if needed"
-else
-    echo "✅ Flask API server is running on port $ACTUAL_PORT"
-fi
 
 # Start Celery worker
 echo "🎯 Starting Celery worker..."
@@ -106,10 +106,10 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "💡 Tips:"
 echo "  • Make changes to React components and see them update instantly"
-echo "  • API calls are automatically proxied from Vite to Flask"
+echo "  • API calls are automatically proxied from Vite to Flask on port $ACTUAL_PORT"
 echo "  • Background tasks are processed by Celery workers"
 echo "  • Check browser console for any errors"
-echo "  • If you see proxy errors, check that Flask is running on the expected port"
+echo "  • If you see proxy errors, check that Flask is running on port $ACTUAL_PORT"
 echo ""
 echo "Press Ctrl+C to stop all servers"
 
